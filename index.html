@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Happy Birthday Rashi</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <h1>Happy Birthday, Rashi!</h1>
+      <nav>
+        <ul>
+          <li><a href="#notes">Notes</a></li>
+          <li><a href="#media">Media</a></li>
+          <li><a href="#game">Game</a></li>
+          <li><a href="#spotify-login">Spotify</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="notes" class="card">
+      <h2><i class="fas fa-pencil-alt"></i> Notes</h2>
+      <p>Write your thoughts and messages here!</p>
+      <button>Start Writing</button>
+    </section>
+
+    <section id="media" class="card">
+      <h2><i class="fas fa-photo-video"></i> Media</h2>
+      <p>Upload and share your favorite memories.</p>
+      <button>Upload Media</button>
+    </section>
+
+    <section id="game" class="card">
+      <h2><i class="fas fa-gamepad"></i> Game</h2>
+      <p>Let’s play a fun game to celebrate!</p>
+      <button>Play Game</button>
+    </section>
+
+    <section id="spotify-login">
+      <h2>Log in to Spotify</h2>
+      <p id="spotify-status">Not logged in.</p>
+      <a href="http://localhost:3000/login">
+        <button>Log in with Spotify</button>
+      </a>
+    </section>
+
+    <section id="spotify-player">
+      <h2>Spotify Player</h2>
+      <div id="track-info">
+        <img id="track-image" src="" alt="Track Image" style="display: none; width: 200px; height: 200px;">
+        <div id="track-details">
+          <h3 id="track-name"></h3>
+          <p id="track-artist"></p>
+          <p id="track-album"></p>
+          <p id="track-time"></p>
+        </div>
+      </div>
+      <button id="play-pause-button" disabled>Play Music</button>
+      <p id="playback-status" style="color: green; display: none;">Track is playing!</p>
+    </section>
+
+    <section id="playlists" class="card" style="display:none;">
+      <h2><i class="fas fa-music"></i> Your Playlists</h2>
+      <div id="playlist-container">
+        <!-- Playlists will be displayed here -->
+      </div>
+    </section>
+
+    <section id="tracks" class="card" style="display:none;">
+      <h2><i class="fas fa-music"></i> Choose a Track</h2>
+      <div id="track-container">
+        <!-- Tracks will be displayed here -->
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>Made with ❤️ by Malay</p>
+  </footer>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const loggedIn = urlParams.get('logged_in');
+    const accessToken = urlParams.get('access_token');
+    const refreshToken = urlParams.get('refresh_token');
+
+    let currentTrackPlaying = false;
+
+    if (loggedIn === 'true') {
+      document.getElementById('spotify-status').textContent = 'Logged in to Spotify!';
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
+
+      document.getElementById('play-pause-button').disabled = false;
+      document.getElementById('play-pause-button').addEventListener('click', togglePlayPause);
+
+      fetchPlaylists();
+    } else {
+      document.getElementById('spotify-status').textContent = 'Not logged in.';
+    }
+
+    function fetchPlaylists() {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('You must log in to Spotify first!');
+        return;
+      }
+
+      fetch('https://api.spotify.com/v1/me/playlists', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.items && data.items.length > 0) {
+          displayPlaylists(data.items);
+        } else {
+          alert('No playlists found.');
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching playlists:', error);
+        alert('Error fetching playlists.');
+      });
+    }
+
+    function displayPlaylists(playlists) {
+      const playlistContainer = document.getElementById('playlist-container');
+      playlistContainer.innerHTML = '';
+      document.getElementById('playlists').style.display = 'block';
+
+      playlists.forEach(playlist => {
+        const playlistElement = document.createElement('div');
+        playlistElement.classList.add('playlist');
+        
+        const playlistName = document.createElement('h3');
+        playlistName.textContent = playlist.name;
+
+        const playButton = document.createElement('button');
+        playButton.textContent = 'Play Playlist';
+        playButton.onclick = () => fetchTracks(playlist.id);
+
+        playlistElement.appendChild(playlistName);
+        playlistElement.appendChild(playButton);
+
+        playlistContainer.appendChild(playlistElement);
+      });
+    }
+
+    function fetchTracks(playlistId) {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('You must log in to Spotify first!');
+        return;
+      }
+
+      fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.items && data.items.length > 0) {
+          displayTracks(data.items);
+        } else {
+          alert('No tracks found in this playlist.');
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching tracks:', error);
+        alert('Error fetching tracks.');
+      });
+    }
+
+    function displayTracks(tracks) {
+      const trackContainer = document.getElementById('track-container');
+      trackContainer.innerHTML = '';
+      document.getElementById('tracks').style.display = 'block';
+
+      tracks.forEach(track => {
+        const trackElement = document.createElement('div');
+        trackElement.classList.add('track');
+        
+        const trackName = document.createElement('h3');
+        trackName.textContent = track.track.name;
+
+        const playButton = document.createElement('button');
+        playButton.textContent = 'Play';
+        playButton.onclick = () => playTrack(track.track.uri);
+
+        trackElement.appendChild(trackName);
+        trackElement.appendChild(playButton);
+
+        trackContainer.appendChild(trackElement);
+      });
+    }
+
+    function playTrack(trackUri) {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('You must log in to Spotify first!');
+        return;
+      }
+
+      fetch('https://api.spotify.com/v1/me/player/play', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          uris: [trackUri]
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.item) {
+          currentTrackPlaying = true;
+          document.getElementById('play-pause-button').textContent = 'Pause Music';
+          document.getElementById('playback-status').textContent = 'Track is playing!';
+          document.getElementById('playback-status').style.display = 'block';
+
+          const trackImage = document.getElementById('track-image');
+          const trackName = document.getElementById('track-name');
+          const trackArtist = document.getElementById('track-artist');
+          const trackAlbum = document.getElementById('track-album');
+          const trackTime = document.getElementById('track-time');
+
+          trackImage.src = data.item.album.images[0].url;
+          trackImage.style.display = 'block';
+          trackName.textContent = data.item.name;
+          trackArtist.textContent = data.item.artists[0].name;
+          trackAlbum.textContent = data.item.album.name;
+          trackTime.textContent = `Time: ${Math.floor(data.item.duration_ms / 60000)}:${Math.floor((data.item.duration_ms % 60000) / 1000)}`;
+        } else {
+          console.error('No track data received.');
+        }
+      })
+      .catch(error => {
+        console.error('Error playing the track:', error);
+      });
+    }
+
+    function togglePlayPause() {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('You must log in to Spotify first!');
+        return;
+      }
+
+      const method = currentTrackPlaying ? 'PUT' : 'POST';
+      const endpoint = currentTrackPlaying ? 'https://api.spotify.com/v1/me/player/pause' : 'https://api.spotify.com/v1/me/player/play';
+
+      fetch(endpoint, {
+        method: method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          currentTrackPlaying = !currentTrackPlaying;
+          document.getElementById('play-pause-button').textContent = currentTrackPlaying ? 'Pause Music' : 'Play Music';
+          document.getElementById('playback-status').textContent = currentTrackPlaying ? 'Track is playing!' : 'Track is paused.';
+        }
+      })
+      .catch(error => {
+        console.error('Error toggling playback:', error);
+      });
+    }
+  </script>
+</body>
+</html>
